@@ -45,4 +45,3 @@ export const OPTIONS = createHandler(
   [cors],
   async () => new Response(null, { status: 204 }),
 );
-
