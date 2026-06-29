@@ -1,0 +1,93 @@
+# ============================================================
+# docker-compose.yml — 容器编排配置
+# 定义两个服务：nextjs（应用）+ nginx（反向代理）
+# 两者通过内部 bridge 网络通信，nginx 对外暴露 80 端口
+# 启动命令：docker compose up -d --build
+# ============================================================
+
+# 顶层 services 关键字，下面定义所有容器服务
+services:
+
+  # ---- Next.js 应用服务 ----
+  # 服务名 nextjs，同时也是 Docker 内部网络的 DNS 名称
+  # nginx 配置中的 server nextjs:3000 就是指向这个服务
+  nextjs:
+    # 构建配置：从本地 Dockerfile 构建镜像
+    build:
+      # 构建上下文目录（当前目录，即项目根目录）
+      # Docker 会将此目录打包发送给守护进程（受 .dockerignore 过滤）
+      context: .
+      # 指定使用的 Dockerfile 文件名
+      dockerfile: Dockerfile
+
+    # 容器名称（运行后可通过 docker ps 看到这个名字）
+    container_name: nextjs-app
+
+    # 重启策略：unless-stopped 表示容器退出后自动重启
+    # 除非手动 docker stop 停止，否则总是自动拉起
+    restart: unless-stopped
+
+    # expose 仅在 Docker 内部网络暴露端口，不映射到宿主机
+    # 与 ports 的区别：ports 会映射到宿主机，expose 只在容器间可见
+    # 这样外部无法直接访问 3000 端口，必须经过 nginx 代理
+    expose:
+      - "3000"
+
+    # 注入容器的环境变量
+    environment:
+      # 生产环境标识，Next.js 据此优化行为
+      - NODE_ENV=production
+      # pino 日志级别（info/warn/error/debug），生产用 info
+      - LOG_LEVEL=info
+      # Next.js standalone 监听地址，0.0.0.0 表示所有网卡（容器内必须）
+      - HOSTNAME=0.0.0.0
+      # Next.js standalone 监听端口
+      - PORT=3000
+
+    # 将此容器加入 app-network 网络
+    # 同一网络中的容器可通过服务名互相访问
+    networks:
+      - app-network
+
+  # ---- nginx 反向代理服务 ----
+  # 使用官方 nginx:alpine 镜像，无需构建
+  nginx:
+    # 使用 Docker Hub 上的 nginx alpine 精简镜像
+    image: nginx:alpine
+
+    # 容器名称
+    container_name: nginx-proxy
+
+    # 重启策略：同上
+    restart: unless-stopped
+
+    # 端口映射：将宿主机的 80 端口映射到容器的 80 端口
+    # 格式为 "宿主机端口:容器端口"
+    # 外部用户访问 http://localhost 即经过此映射进入 nginx 容器
+    ports:
+      - "80:80"
+
+    # 数据卷挂载：将宿主机文件映射到容器内
+    volumes:
+      # 将本项目的 nginx/default.conf 挂载到容器内 nginx 的配置目录
+      # :ro 表示只读挂载，容器内无法修改此文件，防止误操作
+      # 官方 nginx 镜像会自动加载 /etc/nginx/conf.d/ 下的所有 .conf 文件
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+
+    # 依赖关系：nginx 启动前先启动 nextjs
+    # 注意：depends_on 只保证启动顺序，不等待 nextjs 完全就绪
+    # nginx 会通过 upstream 重试机制自动处理 nextjs 未就绪的情况
+    depends_on:
+      - nextjs
+
+    # nginx 也加入同一网络，才能通过服务名 nextjs 访问到后端容器
+    networks:
+      - app-network
+
+# ---- 自定义网络 ----
+# 定义一个 bridge 类型的 Docker 网络
+# bridge 是默认网络类型，适用于单机多容器通信
+# 两个服务都加入这个网络后，可通过服务名（nextjs / nginx）互相解析 IP
+networks:
+  app-network:
+    driver: bridge
