@@ -16,12 +16,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { message, model } = chatInsRequestSchema.parse(body);
+    const { message, sessionId, model } = chatInsRequestSchema.parse(body);
 
-    logger.info({ traceId, model, messageLength: message.length }, 'chat-ins request received');
+    logger.info({ traceId, model, sessionId, messageLength: message.length }, 'chat-ins request received');
 
     // 调用 service 获取流式生成器，转为 SSE 响应
-    const stream = chatStream([{ role: 'user', content: message }], model);
+    const stream = chatStream(message, sessionId, model);
     const encoder = new TextEncoder();
 
     const readable = new ReadableStream({

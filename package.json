@@ -11,6 +11,9 @@
   "dependencies": {
     "@langchain/core": "^1.2.1",
     "@langchain/openai": "^1.5.3",
+    "antd-mobile": "^5.42.3",
+    "antd-mobile-icons": "^0.3.0",
+    "ioredis": "^5.11.1",
     "next": "16.2.9",
     "pino": "^10.3.1",
     "react": "19.2.4",

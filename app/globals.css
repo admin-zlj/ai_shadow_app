@@ -1,8 +1,45 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+  --background: #0a0a0a;
+  --foreground: #ededed;
+}
+
+/* antd-mobile 暗色主题变量 */
+:root {
+  --adm-color-background: #18181b;
+  --adm-color-text: #f4f4f5;
+  --adm-color-text-secondary: #a1a1aa;
+  --adm-color-border: #27272a;
+  --adm-color-light: #27272a;
+  --adm-color-box: #18181b;
+  --adm-color-white: #18181b;
+  --adm-font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* antd-mobile 组件暗色强制覆盖 */
+.adm-popup-body {
+  background-color: #18181b !important;
+}
+.adm-list {
+  background-color: #18181b !important;
+}
+.adm-list-item {
+  background-color: #18181b !important;
+}
+.adm-list-item-content-main {
+  color: #f4f4f5 !important;
+}
+.adm-list-item-content {
+  border-top-color: #27272a !important;
+}
+.adm-nav-bar {
+  background-color: #18181b !important;
+  color: #f4f4f5 !important;
+}
+.adm-button.adm-button-fill-solid {
+  --adm-color-text: #fff !important;
 }
 
 @theme inline {
@@ -12,15 +49,8 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }

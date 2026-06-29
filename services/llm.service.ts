@@ -24,8 +24,10 @@ export const DEFAULT_MODEL_KEY = "qwen3.7-plus";
  */
 const modelRegistry: Record<string, ModelConfig> = {
   "qwen3.7-plus": {
-    apiKey: "sk-5e5a16c8dc9145f59a4afff837f0b3a7",
-    baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    apiKey:
+      "sk-ws-H.RXMELYY.GmbM.MEUCIBWQHzDtvcMYQBwz7BrZ6q5ubvBLpsJ1cdEWVeHHIUfxAiEApcsta-ECNvoV7nZ0225oBCW2QqM8qQ8Y86mz_6_vEMU",
+    baseURL:
+      "https://llm-gczpgy4dlf4lhtln.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
     model: "qwen3.7-plus",
   },
 };
