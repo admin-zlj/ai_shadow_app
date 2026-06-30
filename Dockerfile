@@ -15,9 +15,10 @@ WORKDIR /app
 RUN corepack enable && yarn set version stable || npm install -g yarn
 RUN yarn config set npmRegistryServer https://registry.npmmirror.com 2>/dev/null || yarn config set registry https://registry.npmmirror.com
 
-# 仅复制 package.json 和 yarn.lock，利用 Docker 层缓存
+# 仅复制 package.json 和 yarn.lock（若存在），利用 Docker 层缓存
 # 只要依赖不变，这一层就不会重新执行 yarn install，大幅加速后续构建
-COPY package.json yarn.lock ./
+# 使用 yarn.lock* 语法可在 yarn.lock 不存在时跳过，避免构建失败
+COPY package.json yarn.lock* ./
 
 # yarn install --frozen-lockfile 严格按照 lockfile 安装依赖（包含 devDependencies）
 # 构建阶段需要 next、typescript 等 devDependencies 才能执行 next build
