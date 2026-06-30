@@ -11,8 +11,11 @@ FROM crpi-dnxlyt733clbjdd3.cn-hangzhou.personal.cr.aliyuncs.com/striver_zlj/node
 # 设置容器内工作目录为 /app，后续所有命令都在此目录下执行
 WORKDIR /app
 
-# 安装 yarn 并设置淘宝镜像源（兼容 Yarn 1，避免 npmRegistryServer 配置无效）
-RUN rm -f /usr/local/bin/yarn && corepack enable && yarn set version stable || npm install -g yarn --force
+# 明确安装 Yarn 1 Classic 版本，避免与 Yarn Berry（v4+）混用导致行为不可预期
+# 指定淘宝镜像源加速下载，--force 确保覆盖任何已存在的 yarn 版本
+RUN npm install -g yarn@1 --registry=https://registry.npmmirror.com
+
+# 为 yarn 本身也设置淘宝镜像源，确保后续 yarn install 走国内镜像加速
 RUN yarn config set registry https://registry.npmmirror.com
 
 # 仅复制 package.json 和 yarn.lock，利用 Docker 层缓存
@@ -23,6 +26,7 @@ COPY package.json yarn.lock ./
 # 构建阶段需要 next、typescript 等 devDependencies 才能执行 next build
 # 增加 network-timeout 防止网络慢时超时
 RUN yarn install --frozen-lockfile --network-timeout 600000
+
 
 # ---- 第二阶段：builder ----
 # 再次使用 Node.js 20 Alpine 镜像作为构建环境
@@ -39,9 +43,16 @@ COPY . .
 # 关闭 Next.js 遥测上报，避免构建时向 Vercel 发送匿名统计数据
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# 如项目中使用了 NEXT_PUBLIC_* 前缀的环境变量，必须在构建时注入
+# 因为 Next.js 会在 build 阶段将其静态编译进 bundle，运行时无法动态修改
+# 使用方式：docker build --build-arg NEXT_PUBLIC_API_URL=https://api.example.com .
+# ARG NEXT_PUBLIC_API_URL
+# ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
 # 执行 next build，因 next.config.ts 中配置了 output: "standalone"
 # 构建后会在 .next/standalone/ 下生成独立的 server.js 和精简的 node_modules
 RUN yarn build
+
 
 # ---- 第三阶段：runner（最终生产镜像）----
 # 使用同一个精简镜像，但只保留运行所需的最少文件
@@ -66,13 +77,20 @@ RUN addgroup --system --gid 1001 nodejs \
 
 # 从 builder 阶段拷贝 standalone 产物到当前镜像根目录
 # standalone 包含：server.js（最小化 Node 服务器）+ 运行所需的精简 node_modules
-COPY --from=builder /app/.next/standalone ./
+# --chown=nextjs:nodejs 确保文件归属为 nextjs 用户，避免非 root 用户运行时出现权限不足
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 
 # standalone 默认不包含静态资源，需手动拷贝 .next/static（JS/CSS chunks 等）
-COPY --from=builder /app/.next/static ./.next/static
+# --chown 同上，保持文件归属一致
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # 拷贝 public 目录下的静态文件（favicon、图片等）
-COPY --from=builder /app/public ./public
+# --chown 同上，保持文件归属一致
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+
+# 创建运行时缓存目录并授权给 nextjs 用户
+# Next.js server 运行时会向 .next/cache/ 写入缓存文件，目录不存在或无写权限会导致功能静默失败
+RUN mkdir -p .next/cache && chown -R nextjs:nodejs .next/cache
 
 # 切换到非 root 用户 nextjs 运行后续命令，提升安全性
 USER nextjs
