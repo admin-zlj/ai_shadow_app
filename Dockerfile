@@ -12,7 +12,7 @@ FROM crpi-dnxlyt733clbjdd3.cn-hangzhou.personal.cr.aliyuncs.com/striver_zlj/node
 WORKDIR /app
 
 # 安装 yarn 并设置淘宝镜像源（yarn 比 npm 更稳定，避免 npm "Exit handler never called" 问题）
-RUN corepack enable && yarn set version stable || npm install -g yarn
+RUN rm -f /usr/local/bin/yarn && corepack enable && yarn set version stable || npm install -g yarn --force
 RUN yarn config set npmRegistryServer https://registry.npmmirror.com 2>/dev/null || yarn config set registry https://registry.npmmirror.com
 
 # 仅复制 package.json 和 yarn.lock，利用 Docker 层缓存
