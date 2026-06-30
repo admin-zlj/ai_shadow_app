@@ -11,13 +11,17 @@ FROM crpi-dnxlyt733clbjdd3.cn-hangzhou.personal.cr.aliyuncs.com/striver_zlj/node
 # 设置容器内工作目录为 /app，后续所有命令都在此目录下执行
 WORKDIR /app
 
-# 仅复制 package.json 和 lockfile，利用 Docker 层缓存
-# 只要依赖不变，这一层就不会重新执行 npm ci，大幅加速后续构建
-COPY package.json package-lock.json ./
+# 安装 yarn 并设置淘宝镜像源（yarn 比 npm 更稳定，避免 npm "Exit handler never called" 问题）
+RUN corepack enable && yarn set version stable || npm install -g yarn
+RUN yarn config set npmRegistryServer https://registry.npmmirror.com 2>/dev/null || yarn config set registry https://registry.npmmirror.com
 
-# npm ci 严格按照 lockfile 安装依赖（包含 devDependencies）
+# 仅复制 package.json 和 yarn.lock，利用 Docker 层缓存
+# 只要依赖不变，这一层就不会重新执行 yarn install，大幅加速后续构建
+COPY package.json yarn.lock ./
+
+# yarn install --frozen-lockfile 严格按照 lockfile 安装依赖（包含 devDependencies）
 # 构建阶段需要 next、typescript 等 devDependencies 才能执行 next build
-RUN npm ci
+RUN yarn install --frozen-lockfile
 
 # ---- 第二阶段：builder ----
 # 再次使用 Node.js 20 Alpine 镜像作为构建环境
@@ -36,7 +40,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 # 执行 next build，因 next.config.ts 中配置了 output: "standalone"
 # 构建后会在 .next/standalone/ 下生成独立的 server.js 和精简的 node_modules
-RUN npm run build
+RUN yarn build
 
 # ---- 第三阶段：runner（最终生产镜像）----
 # 使用同一个精简镜像，但只保留运行所需的最少文件
