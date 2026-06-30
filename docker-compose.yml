@@ -2,7 +2,11 @@
 # docker-compose.yml — 容器编排配置
 # 定义两个服务：nextjs（应用）+ nginx（反向代理）
 # 两者通过内部 bridge 网络通信，nginx 对外暴露 80 端口
-# 启动命令：docker compose up -d --build
+#
+# 注意：nextjs 镜像由 CI 流水线提前构建并推送到镜像仓库，
+#      镜像地址通过环境变量 NEXTJS_IMAGE 传入，不在此处 build。
+# 启动命令示例：
+#   NEXTJS_IMAGE=xxx/nextjs:tag docker compose up -d
 # ============================================================
 
 # 顶层 services 关键字，下面定义所有容器服务
@@ -12,16 +16,11 @@ services:
   # 服务名 nextjs，同时也是 Docker 内部网络的 DNS 名称
   # nginx 配置中的 server nextjs:3000 就是指向这个服务
   nextjs:
-    # 构建配置：从本地 Dockerfile 构建镜像
-    build:
-      # 构建上下文目录（当前目录，即项目根目录）
-      # Docker 会将此目录打包发送给守护进程（受 .dockerignore 过滤）
-      context: .
-      # 指定使用的 Dockerfile 文件名
-      dockerfile: Dockerfile
+    # 镜像地址由 CI 流水线构建后通过环境变量传入
+    image: ${NEXTJS_IMAGE}
 
     # 容器名称（运行后可通过 docker ps 看到这个名字）
-    container_name: nextjs-app
+    container_name: ai-shadow
 
     # 重启策略：unless-stopped 表示容器退出后自动重启
     # 除非手动 docker stop 停止，否则总是自动拉起
@@ -50,10 +49,10 @@ services:
       - app-network
 
   # ---- nginx 反向代理服务 ----
-  # 使用官方 nginx:alpine 镜像，无需构建
+  # 使用私有仓库的 nginx 镜像，无需构建
   nginx:
-    # 使用 Docker Hub 上的 nginx alpine 精简镜像
-    image: nginx:alpine
+    # 使用私有仓库的 nginx 镜像
+    image: crpi-dnxlyt733clbjdd3.cn-hangzhou.personal.cr.aliyuncs.com/striver_zlj/nginx:1.31-alpine
 
     # 容器名称
     container_name: nginx-proxy

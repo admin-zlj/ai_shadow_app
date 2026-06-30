@@ -6,7 +6,7 @@
 # ---- 第一阶段：deps ----
 # 基于 Node.js 20 的 Alpine 精简镜像，体积小、启动快
 # 命名为 deps，后续阶段可通过 --from=deps 引用
-FROM node:20-alpine AS deps
+FROM crpi-dnxlyt733clbjdd3.cn-hangzhou.personal.cr.aliyuncs.com/striver_zlj/node:20-alpine AS deps
 
 # 设置容器内工作目录为 /app，后续所有命令都在此目录下执行
 WORKDIR /app
@@ -21,7 +21,7 @@ RUN npm ci
 
 # ---- 第二阶段：builder ----
 # 再次使用 Node.js 20 Alpine 镜像作为构建环境
-FROM node:20-alpine AS builder
+FROM crpi-dnxlyt733clbjdd3.cn-hangzhou.personal.cr.aliyuncs.com/striver_zlj/node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -40,7 +40,7 @@ RUN npm run build
 
 # ---- 第三阶段：runner（最终生产镜像）----
 # 使用同一个精简镜像，但只保留运行所需的最少文件
-FROM node:20-alpine AS runner
+FROM crpi-dnxlyt733clbjdd3.cn-hangzhou.personal.cr.aliyuncs.com/striver_zlj/node:20-alpine AS runner
 
 WORKDIR /app
 
