@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { authHeaders, getStoredAuth } from "@/lib/auth/client";
 
 interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -15,6 +17,7 @@ interface SessionListItem {
 }
 
 export function useChat() {
+  const router = useRouter();
   const [sessions, setSessions] = useState<SessionListItem[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -25,10 +28,21 @@ export function useChat() {
 
   const currentSession = sessions.find((s) => s.id === currentSessionId);
 
+  function requireAuthHeaders(): Record<string, string> | null {
+    const headers = authHeaders();
+    if (!headers["x-user-id"]) {
+      router.replace("/login");
+      return null;
+    }
+    return headers;
+  }
+
   /** 加载单个会话的消息 */
   async function loadSessionMessages(id: string) {
+    const headers = requireAuthHeaders();
+    if (!headers) return;
     try {
-      const res = await fetch(`/api/sessions/${id}`);
+      const res = await fetch(`/api/sessions/${id}`, { headers });
       const data = await res.json();
       if (data.success) {
         setCurrentSessionId(id);
@@ -48,8 +62,10 @@ export function useChat() {
 
   /** 加载所有会话列表 */
   async function loadSessions() {
+    const headers = requireAuthHeaders();
+    if (!headers) return;
     try {
-      const res = await fetch("/api/sessions");
+      const res = await fetch("/api/sessions", { headers });
       const data = await res.json();
       if (data.success) {
         const list = data.data as SessionListItem[];
@@ -63,8 +79,12 @@ export function useChat() {
     }
   }
 
-  // 挂载后加载会话列表
+  // 挂载后检查登录并加载会话列表
   useEffect(() => {
+    if (!getStoredAuth()) {
+      router.replace("/login");
+      return;
+    }
     loadSessions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -76,8 +96,13 @@ export function useChat() {
 
   /** 新建对话 */
   async function newChat() {
+    const headers = requireAuthHeaders();
+    if (!headers) return;
     try {
-      const res = await fetch("/api/sessions", { method: "POST" });
+      const res = await fetch("/api/sessions", {
+        method: "POST",
+        headers,
+      });
       const data = await res.json();
       if (data.success) {
         const session = data.data as SessionListItem;
@@ -99,8 +124,10 @@ export function useChat() {
 
   /** 删除对话 */
   async function deleteSession(id: string) {
+    const headers = requireAuthHeaders();
+    if (!headers) return;
     try {
-      await fetch(`/api/sessions/${id}`, { method: "DELETE" });
+      await fetch(`/api/sessions/${id}`, { method: "DELETE", headers });
       setSessions((prev) => {
         const filtered = prev.filter((s) => s.id !== id);
         if (currentSessionId === id) {
@@ -125,8 +152,13 @@ export function useChat() {
     // 没有当前对话则先创建
     let sid = currentSessionId;
     if (!sid) {
+      const headers = requireAuthHeaders();
+      if (!headers) return;
       try {
-        const res = await fetch("/api/sessions", { method: "POST" });
+        const res = await fetch("/api/sessions", {
+          method: "POST",
+          headers,
+        });
         const data = await res.json();
         if (data.success) {
           sid = data.data.id;
@@ -151,9 +183,14 @@ export function useChat() {
     setLoading(true);
 
     try {
+      const headers = requireAuthHeaders();
+      if (!headers) return;
       const res = await fetch("/api/chat-ins", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...headers,
+        },
         body: JSON.stringify({ message: userMessage, sessionId }),
       });
 

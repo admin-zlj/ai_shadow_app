@@ -5,12 +5,14 @@ import {
   createValidationMiddleware,
   errorHandlingMiddleware,
   createCorsMiddleware,
+  createAuthMiddleware,
 } from "@/lib/middleware";
 import type { RequestContext } from "@/lib/middleware";
 import { chatRequestSchema } from "@/schemas/chat";
 import { successResponse } from "@/lib/response";
 
 const cors = createCorsMiddleware({ origin: "*" });
+const auth = createAuthMiddleware();
 
 const validateChat = createValidationMiddleware({
   schema: chatRequestSchema,
@@ -36,7 +38,7 @@ async function chatHandler(
 }
 
 export const POST = createHandler(
-  [cors, loggingMiddleware, validateChat, errorHandlingMiddleware],
+  [cors, loggingMiddleware, auth, validateChat, errorHandlingMiddleware],
   chatHandler,
 );
 

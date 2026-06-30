@@ -29,7 +29,7 @@ export function HistoryDrawer({
     <Popup
       visible={visible}
       onMaskClick={onClose}
-      position="right"
+      position="left"
       bodyStyle={{ width: "18rem", height: "100%", backgroundColor: "#18181b" }}
     >
       <div className="flex flex-col h-full">

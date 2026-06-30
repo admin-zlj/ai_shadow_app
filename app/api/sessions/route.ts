@@ -1,35 +1,57 @@
 /**
  * API 路由 — /api/sessions
  *
- * GET  : 获取所有会话列表（不含消息内容）
+ * GET  : 获取当前用户的会话列表（不含消息内容）
  * POST : 创建新会话
+ *
+ * 请求头必填：X-User-Id、X-Auth-Token
  */
 
 import type { NextRequest } from 'next/server';
 import { chatRepository } from '@/db/chat.repository';
-import { successResponse, errorResponse } from '@/lib/response';
-import { generateTraceId } from '@/lib/trace-id';
+import { successResponse } from '@/lib/response';
+import {
+  createHandler,
+  loggingMiddleware,
+  errorHandlingMiddleware,
+  createCorsMiddleware,
+} from '@/lib/middleware';
+import { createAuthMiddleware } from '@/lib/middleware/auth';
+import type { RequestContext } from '@/lib/middleware';
 
-export async function GET() {
-  const traceId = generateTraceId();
+const cors = createCorsMiddleware({ origin: '*' });
+const auth = createAuthMiddleware();
 
-  try {
-    const sessions = await chatRepository.getAllSessions();
-    return successResponse(sessions, traceId);
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Internal server error';
-    return errorResponse(msg, traceId, 500);
-  }
+async function listSessionsHandler(
+  _request: NextRequest,
+  context: RequestContext,
+): Promise<Response> {
+  const userId = context.authUserId as string;
+  const sessions = await chatRepository.getAllSessions(userId);
+  return successResponse(sessions, context.traceId);
 }
 
-export async function POST(_request: NextRequest) {
-  const traceId = generateTraceId();
-
-  try {
-    const session = await chatRepository.createSession();
-    return successResponse(session, traceId, 201);
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Internal server error';
-    return errorResponse(msg, traceId, 500);
-  }
+async function createSessionHandler(
+  _request: NextRequest,
+  context: RequestContext,
+): Promise<Response> {
+  const userId = context.authUserId as string;
+  const session = await chatRepository.createSession(userId);
+  const { id, title, createdAt } = session;
+  return successResponse({ id, title, createdAt }, context.traceId, 201);
 }
+
+export const GET = createHandler(
+  [cors, loggingMiddleware, auth, errorHandlingMiddleware],
+  listSessionsHandler,
+);
+
+export const POST = createHandler(
+  [cors, loggingMiddleware, auth, errorHandlingMiddleware],
+  createSessionHandler,
+);
+
+export const OPTIONS = createHandler(
+  [cors],
+  async () => new Response(null, { status: 204 }),
+);

@@ -5,3 +5,4 @@ export { createValidationMiddleware } from './validation';
 export { errorHandlingMiddleware, ApiError } from './error-handling';
 export { createCorsMiddleware } from './cors';
 export type { CorsOptions } from './cors';
+export { createAuthMiddleware } from './auth';

@@ -19,6 +19,7 @@ import { logger } from '@/lib/logger';
  * @returns 异步生成器，逐块 yield 文本内容
  */
 export async function* chatStream(
+  userId: string,
   userMessage: string,
   sessionId: string,
   modelKey?: string,
@@ -29,17 +30,17 @@ export async function* chatStream(
   const model = getChatModel(config);
 
   // 2. 持久化用户消息到 Redis
-  await chatRepository.appendMessage(sessionId, {
+  await chatRepository.appendMessage(userId, sessionId, {
     role: 'user',
     content: userMessage,
     timestamp: Date.now(),
   });
 
   // 3. 如果是第一条消息，更新会话标题
-  const session = await chatRepository.getSession(sessionId);
+  const session = await chatRepository.getSession(userId, sessionId);
   if (session && session.messages.length <= 1) {
     const title = userMessage.slice(0, 20) + (userMessage.length > 20 ? '...' : '');
-    await chatRepository.updateTitle(sessionId, title);
+    await chatRepository.updateTitle(userId, sessionId, title);
   }
 
   // 4. 加载历史消息，构造完整消息列表传给大模型
@@ -58,7 +59,7 @@ export async function* chatStream(
 
   // 5. 持久化 AI 回复到 Redis
   logger.info({ sessionId, contentLength: fullContent.length }, 'LLM stream completed');
-  await chatRepository.appendMessage(sessionId, {
+  await chatRepository.appendMessage(userId, sessionId, {
     role: 'assistant',
     content: fullContent,
     timestamp: Date.now(),
