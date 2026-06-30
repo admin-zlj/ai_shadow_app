@@ -11,21 +11,24 @@ FROM crpi-dnxlyt733clbjdd3.cn-hangzhou.personal.cr.aliyuncs.com/striver_zlj/node
 # 设置容器内工作目录为 /app，后续所有命令都在此目录下执行
 WORKDIR /app
 
-# 明确安装 Yarn 1 Classic 版本，避免与 Yarn Berry（v4+）混用导致行为不可预期
-# 指定淘宝镜像源加速下载，--force 确保覆盖任何已存在的 yarn 版本
-RUN npm install -g yarn@1 --registry=https://registry.npmmirror.com
+# node:20-alpine 内置了 corepack，会接管 yarn 命令导致与 yarn@1 冲突
+# 先禁用 corepack，再通过 npm 安装 yarn 1 Classic，确保版本明确可控
+RUN corepack disable \
+ && npm install -g yarn@1 --registry=https://registry.npmmirror.com
 
 # 为 yarn 本身也设置淘宝镜像源，确保后续 yarn install 走国内镜像加速
 RUN yarn config set registry https://registry.npmmirror.com
 
-# 仅复制 package.json 和 yarn.lock，利用 Docker 层缓存
+# 仅复制 package.json，利用 Docker 层缓存
 # 只要依赖不变，这一层就不会重新执行 yarn install，大幅加速后续构建
-COPY package.json yarn.lock ./
+# 不使用 yarn.lock 锁文件，yarn install 会自动解析最新兼容版本的依赖
+COPY package.json ./
 
-# yarn install --frozen-lockfile 严格按照 lockfile 安装依赖（包含 devDependencies）
+# yarn install 根据 package.json 安装依赖（包含 devDependencies）
 # 构建阶段需要 next、typescript 等 devDependencies 才能执行 next build
+# 去掉 --frozen-lockfile，无需 yarn.lock 文件也可正常安装
 # 增加 network-timeout 防止网络慢时超时
-RUN yarn install --frozen-lockfile --network-timeout 600000
+RUN yarn install --network-timeout 600000
 
 
 # ---- 第二阶段：builder ----
