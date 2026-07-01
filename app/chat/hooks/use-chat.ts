@@ -24,7 +24,7 @@ export function useChat() {
   const [showHistory, setShowHistory] = useState(false);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const currentSession = sessions.find((s) => s.id === currentSessionId);
 
@@ -89,9 +89,11 @@ export function useChat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 自动滚动到底部
+  // 仅在消息列表容器内滚动，避免带动整页
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
   /** 新建对话 */
@@ -228,7 +230,6 @@ export function useChat() {
 
           const parsed = JSON.parse(data);
           if (parsed.content) {
-            console.log("chunk:", parsed.content);
             setMessages((prev) => {
               const updated = [...prev];
               const last = updated[updated.length - 1];
@@ -278,7 +279,7 @@ export function useChat() {
     message,
     loading,
     showHistory,
-    messagesEndRef,
+    scrollContainerRef,
     setMessage,
     setShowHistory,
     newChat,

@@ -19,7 +19,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-zinc-950">
+    <div className="flex h-dvh w-full max-w-full flex-col overflow-hidden bg-zinc-950">
       <ChatHeader
         onOpenHistory={() => chat.setShowHistory(true)}
         onLogout={handleLogout}
@@ -27,7 +27,7 @@ export default function ChatPage() {
 
       <MessageList
         messages={chat.messages}
-        messagesEndRef={chat.messagesEndRef}
+        scrollContainerRef={chat.scrollContainerRef}
       />
 
       <MessageInput
