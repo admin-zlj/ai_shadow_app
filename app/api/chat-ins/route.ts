@@ -1,7 +1,13 @@
 /**
- * Route 层 — /api/chat-ins
+ * Route 层 — POST /api/chat-ins
  *
- * demo 接口：校验登录 → 校验 body → 调用 service → SSE 流式返回
+ * 调用链（从外到内）：
+ *   浏览器 fetch(SSE) → 本文件 → chat.service.chatStream()
+ *        → chat-agent.stream.streamChatWithTools()（工具循环）
+ *        → llm.service + tools/*
+ *
+ * 本文件只做：鉴权、校验 body、把 service 吐出的文本块包成 SSE 事件。
+ * 业务逻辑（Redis、System Prompt、工具）都在 services/ 里。
  */
 
 import type { NextRequest } from 'next/server';
@@ -12,6 +18,8 @@ import { chatStream } from '@/services/chat.service';
 import { logger } from '@/lib/logger';
 import { authenticateRequest } from '@/lib/auth/server';
 import { chatRepository } from '@/db/chat.repository';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   const traceId = generateTraceId();
@@ -44,11 +52,13 @@ export async function POST(request: NextRequest) {
     const stream = chatStream(auth.userId, message, sessionId, model);
     const encoder = new TextEncoder();
 
+    // ReadableStream：每从 chatStream yield 一段文字，就推一条 SSE data 行给前端
     const readable = new ReadableStream({
       async start(controller) {
         try {
           logger.info({ traceId }, 'SSE stream started');
           for await (const chunk of stream) {
+            if (chunk.length === 0) continue;
             controller.enqueue(
               encoder.encode(`data: ${JSON.stringify({ content: chunk })}\n\n`),
             );
@@ -69,9 +79,10 @@ export async function POST(request: NextRequest) {
 
     return new Response(readable, {
       headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
         Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
         'Access-Control-Allow-Origin': '*',
       },
     });

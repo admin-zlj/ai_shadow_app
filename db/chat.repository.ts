@@ -20,6 +20,13 @@ export interface ChatSession {
   title: string;
   messages: ChatMessage[];
   createdAt: number;
+  /** 已折叠进摘要的会话内容（由大模型生成） */
+  summary?: string;
+  /**
+   * messages 中下标 0..summaryThroughIndex 已并入 summary，不再逐条传给大模型。
+   * 未设置时为 -1（表示尚未摘要任何一条）。
+   */
+  summaryThroughIndex?: number;
 }
 
 /** 会话列表项（不含消息内容） */

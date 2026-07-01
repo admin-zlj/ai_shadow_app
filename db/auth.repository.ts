@@ -6,9 +6,12 @@
  * auth:token:{token}       → userId
  */
 
-import { randomUUID } from 'crypto';
-import { getRedis } from './redis';
-import { AUTH_TOKEN_TTL_SECONDS, MASTER_AUTH_TOKEN } from '@/lib/auth/constants';
+import { randomUUID } from "crypto";
+import { getRedis } from "./redis";
+import {
+  AUTH_TOKEN_TTL_SECONDS,
+  MASTER_AUTH_TOKEN,
+} from "@/lib/auth/constants";
 
 export interface AuthUserRecord {
   id: string;
@@ -22,9 +25,9 @@ const TOKEN_KEY = (token: string) => `auth:token:${token}`;
 
 /** 预置账号（写入 Redis 的种子数据） */
 export const SEED_USERS: AuthUserRecord[] = [
-  { id: '1', username: 'admin', password: 'admin886' },
-  { id: '2', username: 'user1', password: 'user1' },
-  { id: '8', username: 'user8', password: 'user8' },
+  { id: "1", username: "admin", password: "admin886" },
+  { id: "3", username: "user3", password: "user3" },
+  { id: "8", username: "user8", password: "user8" },
 ];
 
 export async function seedAuthUsers(): Promise<void> {
@@ -64,12 +67,7 @@ export async function verifyLogin(
 
 export async function issueToken(userId: string): Promise<string> {
   const token = randomUUID();
-  await getRedis().set(
-    TOKEN_KEY(token),
-    userId,
-    'EX',
-    AUTH_TOKEN_TTL_SECONDS,
-  );
+  await getRedis().set(TOKEN_KEY(token), userId, "EX", AUTH_TOKEN_TTL_SECONDS);
   return token;
 }
 

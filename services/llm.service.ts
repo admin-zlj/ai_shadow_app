@@ -1,11 +1,14 @@
 /**
  * Service 层 — LLM 服务（LangChain 模型工厂）
  *
- * 通过模型映射表管理多模型配置，前端传入模型标识（key）即可加载对应配置。
- * apiKey / baseURL / model 请在下方映射表中填写。
+ * apiKey / baseURL 与百炼知识库共用同一 MaaS 实例，见 bailian.config.ts
  */
 
-import { ChatOpenAI } from "@langchain/openai";
+import { ChatOpenAI } from '@langchain/openai';
+import {
+  BAILIAN_LLM_BASE_URL,
+  getBailianApiKey,
+} from '@/services/bailian.config';
 
 /** 大模型配置项 */
 export interface ModelConfig {
@@ -15,43 +18,27 @@ export interface ModelConfig {
 }
 
 /** 默认模型标识 */
-export const DEFAULT_MODEL_KEY = "qwen3.7-plus";
+export const DEFAULT_MODEL_KEY = 'qwen3.7-plus';
 
-/**
- * 模型映射表
- * key 为模型标识（前端请求传入），value 为实际大模型配置
- * TODO: 请填写各模型的 apiKey / baseURL / model
- */
-const modelRegistry: Record<string, ModelConfig> = {
-  "qwen3.7-plus": {
-    apiKey:
-      "sk-ws-H.RXMELYY.GmbM.MEUCIBWQHzDtvcMYQBwz7BrZ6q5ubvBLpsJ1cdEWVeHHIUfxAiEApcsta-ECNvoV7nZ0225oBCW2QqM8qQ8Y86mz_6_vEMU",
-    baseURL:
-      "https://llm-gczpgy4dlf4lhtln.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
-    model: "qwen3.7-plus",
+const modelRegistry: Record<string, Omit<ModelConfig, 'apiKey' | 'baseURL'>> = {
+  'qwen3.7-plus': {
+    model: 'qwen3.7-plus',
   },
 };
 
-/**
- * 根据模型标识获取配置
- *
- * @param modelKey 模型标识，未传则使用默认值 qwen3.7
- * @throws 模型标识不存在时抛出错误
- */
 export function getModelConfig(modelKey?: string): ModelConfig {
   const key = modelKey || DEFAULT_MODEL_KEY;
-  const config = modelRegistry[key];
-  if (!config) {
+  const entry = modelRegistry[key];
+  if (!entry) {
     throw new Error(`Model not found: ${key}`);
   }
-  return config;
+  return {
+    apiKey: getBailianApiKey(),
+    baseURL: BAILIAN_LLM_BASE_URL,
+    model: entry.model,
+  };
 }
 
-/**
- * 根据配置创建 ChatOpenAI 模型实例
- *
- * @param config 大模型配置
- */
 export function getChatModel(config: ModelConfig): ChatOpenAI {
   return new ChatOpenAI({
     model: config.model,
